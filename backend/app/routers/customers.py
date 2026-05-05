@@ -6,7 +6,7 @@ from ..database import get_db
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
-@router.post("/", response_model=schemas.Customer)
+@router.post("", response_model=schemas.Customer)
 def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_db)):
     db_customer = models.Customer(**customer.dict())
     db.add(db_customer)
@@ -14,7 +14,7 @@ def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_
     db.refresh(db_customer)
     return db_customer
 
-@router.get("/", response_model=List[schemas.Customer])
+@router.get("", response_model=List[schemas.Customer])
 def get_customers(skip: int = 0, limit: int = 100, search: str = None, db: Session = Depends(get_db)):
     query = db.query(models.Customer)
     

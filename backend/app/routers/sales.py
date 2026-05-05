@@ -8,7 +8,7 @@ from ..utils import generate_invoice_number, calculate_sale_totals
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
-@router.post("/", response_model=schemas.SaleWithDetails)
+@router.post("", response_model=schemas.SaleWithDetails)
 def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(models.Customer.id == sale.customer_id).first()
     if not customer:
@@ -48,7 +48,7 @@ def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
 
     return db_sale
 
-@router.get("/", response_model=List[schemas.SaleWithDetails])
+@router.get("", response_model=List[schemas.SaleWithDetails])
 def get_sales(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     sales = db.query(models.Sale).order_by(models.Sale.date.desc()).offset(skip).limit(limit).all()
     return sales

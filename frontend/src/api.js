@@ -19,28 +19,28 @@ const api = axios.create({
 });
 
 export const customersAPI = {
-  getAll: (search = '') => api.get(`/customers/?search=${search}`),
-  getById: (id) => api.get(`/customers/${id}/`),
-  create: (data) => api.post('/customers/', data),
-  update: (id, data) => api.put(`/customers/${id}/`, data),
-  delete: (id) => api.delete(`/customers/${id}/`),
+  getAll: (search = '') => api.get(`/customers?search=${search}`),
+  getById: (id) => api.get(`/customers/${id}`),
+  create: (data) => api.post('/customers', data),
+  update: (id, data) => api.put(`/customers/${id}`, data),
+  delete: (id) => api.delete(`/customers/${id}`),
 };
 
 export const productsAPI = {
-  getAll: (search = '') => api.get(`/products/?search=${search}`),
-  getById: (id) => api.get(`/products/${id}/`),
-  create: (data) => api.post('/products/', data),
-  update: (id, data) => api.put(`/products/${id}/`, data),
-  delete: (id) => api.delete(`/products/${id}/`),
+  getAll: (search = '') => api.get(`/products?search=${search}`),
+  getById: (id) => api.get(`/products/${id}`),
+  create: (data) => api.post('/products', data),
+  update: (id, data) => api.put(`/products/${id}`, data),
+  delete: (id) => api.delete(`/products/${id}`),
 };
 
 export const salesAPI = {
-  getAll: () => api.get('/sales/'),
-  getById: (id) => api.get(`/sales/${id}/`),
-  getByInvoice: (invoiceNumber) => api.get(`/sales/invoice/${invoiceNumber}/`),
-  create: (data) => api.post('/sales/', data),
-  update: (id, data) => api.put(`/sales/${id}/`, data),
-  delete: (id) => api.delete(`/sales/${id}/`),
+  getAll: () => api.get('/sales'),
+  getById: (id) => api.get(`/sales/${id}`),
+  getByInvoice: (invoiceNumber) => api.get(`/sales/invoice/${invoiceNumber}`),
+  create: (data) => api.post('/sales', data),
+  update: (id, data) => api.put(`/sales/${id}`, data),
+  delete: (id) => api.delete(`/sales/${id}`),
 };
 
 export const exportAPI = {

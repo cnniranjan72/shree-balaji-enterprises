@@ -6,7 +6,7 @@ from ..database import get_db
 
 router = APIRouter(prefix="/products", tags=["products"])
 
-@router.post("/", response_model=schemas.Product)
+@router.post("", response_model=schemas.Product)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
     db_product = models.Product(**product.dict())
     db.add(db_product)
@@ -14,7 +14,7 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     db.refresh(db_product)
     return db_product
 
-@router.get("/", response_model=List[schemas.Product])
+@router.get("", response_model=List[schemas.Product])
 def get_products(skip: int = 0, limit: int = 100, search: str = None, db: Session = Depends(get_db)):
     query = db.query(models.Product)
     

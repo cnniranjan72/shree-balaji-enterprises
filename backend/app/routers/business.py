@@ -4,7 +4,7 @@ from ..config import get_settings
 
 router = APIRouter(prefix="/business", tags=["business"])
 
-@router.get("/", response_model=schemas.BusinessInfo)
+@router.get("", response_model=schemas.BusinessInfo)
 def get_business_info():
     settings = get_settings()
     return schemas.BusinessInfo(

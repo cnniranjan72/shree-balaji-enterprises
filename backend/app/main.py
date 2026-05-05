@@ -12,9 +12,20 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="GST Billing System", version="1.0.0")
 
 # Configure CORS with environment-based frontend URL
+origins = [
+    settings.frontend_url,
+    "http://localhost:3000"  # Fallback for local development
+]
+
+# Debug logging for CORS configuration
+if settings.environment == "development":
+    print(f"🔧 CORS Configuration:")
+    print(f"  Allowed origins: {origins}")
+    print(f"  Frontend URL: {settings.frontend_url}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000"],  # Allow both env URL and localhost for dev
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
