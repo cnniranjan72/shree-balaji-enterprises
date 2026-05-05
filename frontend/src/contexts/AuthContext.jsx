@@ -21,7 +21,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (pin) => {
-    if (pin === '4973') {
+    const adminPin = import.meta.env.VITE_ADMIN_PIN || '4973';
+    if (pin === adminPin) {
       setIsAuthenticated(true);
       localStorage.setItem('isAuthenticated', 'true');
       setShowPinOverlay(false);

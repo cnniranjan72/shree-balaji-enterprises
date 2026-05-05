@@ -35,7 +35,10 @@ const PinOverlay = () => {
       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Admin Access Required</h2>
-          <p className="text-gray-600">Enter PIN to access the system</p>
+          <p className="text-gray-600">Enter PIN to access system</p>
+          {import.meta.env.DEV && (
+            <p className="text-xs text-gray-400 mt-2">PIN: {import.meta.env.VITE_ADMIN_PIN || '4973'}</p>
+          )}
         </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
