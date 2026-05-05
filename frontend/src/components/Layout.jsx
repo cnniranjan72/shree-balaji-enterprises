@@ -2,10 +2,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Home, Users, Package, FileText, Download } from 'lucide-react';
 import { businessAPI } from '../api';
+import { useAuth } from '../contexts/AuthContext.jsx';
+import PinOverlay from './PinOverlay';
 
 export default function Layout({ children }) {
   const location = useLocation();
   const [businessName, setBusinessName] = useState('Shree Balaji Enterprises');
+  const { showPinOverlay } = useAuth();
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -67,6 +70,7 @@ export default function Layout({ children }) {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {children}
       </main>
+      <PinOverlay />
     </div>
   );
 }
