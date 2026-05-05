@@ -11,10 +11,10 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="GST Billing System", version="1.0.0")
 
-# Configure CORS with environment-based frontend URL
+# Configure CORS with explicit production frontend URL
 origins = [
-    settings.frontend_url,
-    "http://localhost:3000"  # Fallback for local development
+    "https://shree-balaji-enterprises.vercel.app",
+    "http://localhost:3000"  # for local testing
 ]
 
 # Debug logging for CORS configuration
