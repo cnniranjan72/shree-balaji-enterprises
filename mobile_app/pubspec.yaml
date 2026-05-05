@@ -1,0 +1,30 @@
+name: gst_billing_app
+description: Fast GST billing app for Shree Balaji Enterprises
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # HTTP client
+  dio: ^5.4.0
+  
+  # State management
+  provider: ^6.1.1
+  
+  # UI
+  cupertino_icons: ^1.0.2
+  intl: ^0.18.1
+  url_launcher: ^6.2.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
