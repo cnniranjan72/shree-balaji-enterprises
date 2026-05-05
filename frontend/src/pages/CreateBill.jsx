@@ -30,12 +30,7 @@ export default function CreateBill() {
 
   useEffect(() => {
     if (customerSearch) {
-      const filtered = customers.filter(customer =>
-        customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-        (customer.gstin && customer.gstin.toLowerCase().includes(customerSearch.toLowerCase())) ||
-        (customer.phone && customer.phone.includes(customerSearch))
-      );
-      setFilteredCustomers(filtered);
+      searchCustomers(customerSearch);
     } else {
       setFilteredCustomers(customers);
     }
@@ -56,10 +51,20 @@ export default function CreateBill() {
 
   const loadCustomers = async () => {
     try {
-      const response = await customersAPI.getAll();
+      const response = await customersAPI.getAll('');
       setCustomers(response.data);
     } catch (error) {
       console.error('Error loading customers:', error);
+    }
+  };
+
+  const searchCustomers = async (searchTerm) => {
+    try {
+      const response = await customersAPI.getAll(searchTerm);
+      setFilteredCustomers(response.data);
+    } catch (error) {
+      console.error('Error searching customers:', error);
+      setFilteredCustomers([]);
     }
   };
 

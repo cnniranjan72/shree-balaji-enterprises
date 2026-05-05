@@ -15,7 +15,7 @@ def create_customer(customer: schemas.CustomerCreate, db: Session = Depends(get_
     return db_customer
 
 @router.get("", response_model=List[schemas.Customer])
-def get_customers(skip: int = 0, limit: int = 100, search: str = None, db: Session = Depends(get_db)):
+def get_customers(skip: int = 0, limit: int = None, search: str = None, db: Session = Depends(get_db)):
     query = db.query(models.Customer)
     
     if search:
@@ -26,7 +26,12 @@ def get_customers(skip: int = 0, limit: int = 100, search: str = None, db: Sessi
             (models.Customer.gstin.ilike(search_filter))
         )
     
-    customers = query.offset(skip).limit(limit).all()
+    # If limit is None, return all customers (no limit)
+    if limit is not None:
+        customers = query.offset(skip).limit(limit).all()
+    else:
+        customers = query.offset(skip).all()
+    
     return customers
 
 @router.get("/{customer_id}", response_model=schemas.Customer)
