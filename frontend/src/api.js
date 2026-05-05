@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { showApiError } from './utils/apiErrorHandler';
 
 // Use environment variable for API URL with fallback for development
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -15,49 +16,178 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000, // Increased to 30s to handle Render cold starts
 });
 
 export const customersAPI = {
-  getAll: (search = '') => api.get(`/customers?search=${search}`),
-  getById: (id) => api.get(`/customers/${id}`),
-  create: (data) => api.post('/customers', data),
-  update: (id, data) => api.put(`/customers/${id}`, data),
-  delete: (id) => api.delete(`/customers/${id}`),
+  getAll: async (search = '') => {
+    try {
+      return await api.get(`/customers?search=${search}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/customers/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/customers', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/customers/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/customers/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
 };
 
 export const productsAPI = {
-  getAll: (search = '') => api.get(`/products?search=${search}`),
-  getById: (id) => api.get(`/products/${id}`),
-  create: (data) => api.post('/products', data),
-  update: (id, data) => api.put(`/products/${id}`, data),
-  delete: (id) => api.delete(`/products/${id}`),
+  getAll: async (search = '') => {
+    try {
+      return await api.get(`/products?search=${search}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/products/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/products', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/products/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/products/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
 };
 
 export const salesAPI = {
-  getAll: () => api.get('/sales'),
-  getById: (id) => api.get(`/sales/${id}`),
-  getByInvoice: (invoiceNumber) => api.get(`/sales/invoice/${invoiceNumber}`),
-  create: (data) => api.post('/sales', data),
-  update: (id, data) => api.put(`/sales/${id}`, data),
-  delete: (id) => api.delete(`/sales/${id}`),
+  getAll: async () => {
+    try {
+      return await api.get('/sales');
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/sales/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getByInvoice: async (invoiceNumber) => {
+    try {
+      return await api.get(`/sales/invoice/${invoiceNumber}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/sales', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/sales/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/sales/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
 };
 
 export const exportAPI = {
-  monthly: (month, year) => {
-    return api.get(`/export/monthly?month=${month}&year=${year}`, {
-      responseType: 'blob',
-    });
+  monthly: async (month, year) => {
+    try {
+      return await api.get(`/export/monthly?month=${month}&year=${year}`, {
+        responseType: 'blob',
+      });
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
   },
-  all: () => {
-    return api.get('/export/all', {
-      responseType: 'blob',
-    });
+  all: async () => {
+    try {
+      return await api.get('/export/all', {
+        responseType: 'blob',
+      });
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
   },
 };
 
 export const businessAPI = {
-  getInfo: () => api.get('/business'),
+  getInfo: async () => {
+    try {
+      return await api.get('/business');
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
 };
 
 export default api;
