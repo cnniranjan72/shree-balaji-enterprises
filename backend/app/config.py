@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
-from pathlib import Path
+
 
 class Settings(BaseSettings):
     # Database
@@ -26,29 +26,18 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
-        # Also look for .env in parent directory (when running from backend/)
         env_file_encoding = "utf-8"
+        # System env vars take precedence over .env file
+        # This is critical for Render where env vars are set in dashboard
+        extra = "ignore"
+
 
 @lru_cache()
 def get_settings():
-    # Try to find .env file - check current dir and parent
-    env_file = ".env"
-    if not os.path.exists(env_file):
-        parent_env = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-        if os.path.exists(parent_env):
-            env_file = parent_env
-    
-    settings = Settings(_env_file=env_file)
+    settings = Settings()
     
     # Validate required environment variables
     if not settings.database_url:
         raise ValueError("DATABASE_URL is required")
-    
-    # Debug info for development
-    if settings.environment == "development":
-        print(f"🔧 Development Mode:")
-        print(f"  Database URL: {settings.database_url[:50]}...")
-        print(f"  Backend URL: {settings.backend_base_url}")
-        print(f"  Frontend URL: {settings.frontend_url}")
     
     return settings
