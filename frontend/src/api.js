@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { showApiError } from './utils/apiErrorHandler';
 
-// Use environment variable for API URL with fallback for development
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+// Use environment variable for API URL with fallback for local development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Debug info for development
 if (import.meta.env.DEV) {

@@ -15,8 +15,16 @@ def generate_invoice_number(db: Session) -> str:
     ).order_by(models.Sale.id.desc()).first()
     
     if last_invoice:
-        last_num = int(last_invoice.invoice_number.split('-')[-1])
-        new_num = last_num + 1
+        try:
+            last_num = int(last_invoice.invoice_number.split('-')[-1])
+            new_num = last_num + 1
+        except (ValueError, IndexError):
+            # Fallback: count existing invoices for this month
+            count = db.query(models.Sale).filter(
+                extract('year', models.Sale.date) == year,
+                extract('month', models.Sale.date) == month
+            ).count()
+            new_num = count + 1
     else:
         new_num = 1
     
@@ -50,7 +58,7 @@ def calculate_item_values(item: object) -> dict:
 def amount_to_words(amount: float) -> str:
     try:
         rupees = int(amount)
-        paise = int((amount - rupees) * 100)
+        paise = int(round((amount - rupees) * 100))
         
         words = num2words(rupees, lang='en_IN').title()
         
@@ -59,7 +67,7 @@ def amount_to_words(amount: float) -> str:
             return f"{words} Rupees and {paise_words} Paise Only"
         else:
             return f"{words} Rupees Only"
-    except:
+    except Exception:
         return "Amount conversion error"
 
 def calculate_sale_totals(items: list) -> dict:

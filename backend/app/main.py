@@ -11,11 +11,21 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="GST Billing System", version="1.0.0")
 
-# Configure CORS with explicit production frontend URL
-origins = [
-    "https://shree-balaji-enterprises.vercel.app",
-    "http://localhost:3000"  # for local testing
-]
+# Configure CORS - env-driven with safe defaults
+origins = []
+
+# Always allow the configured frontend URL
+if settings.frontend_url:
+    origins.append(settings.frontend_url)
+
+# Add common local dev origins
+origins.extend([
+    "http://localhost:3000",
+    "http://localhost:5173",
+])
+
+# Deduplicate
+origins = list(set(origins))
 
 # Debug logging for CORS configuration
 if settings.environment == "development":
@@ -27,7 +37,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

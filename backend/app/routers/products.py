@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from .. import models, schemas
 from ..database import get_db
 
@@ -8,14 +8,14 @@ router = APIRouter(prefix="/products", tags=["products"])
 
 @router.post("", response_model=schemas.Product)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
-    db_product = models.Product(**product.dict())
+    db_product = models.Product(**product.model_dump())
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
     return db_product
 
 @router.get("", response_model=List[schemas.Product])
-def get_products(skip: int = 0, limit: int = 100, search: str = None, db: Session = Depends(get_db)):
+def get_products(skip: int = 0, limit: int = 100, search: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Product)
     
     if search:
@@ -41,7 +41,7 @@ def update_product(product_id: int, product: schemas.ProductCreate, db: Session 
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    for key, value in product.dict().items():
+    for key, value in product.model_dump().items():
         setattr(db_product, key, value)
     
     db.commit()

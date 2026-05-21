@@ -16,7 +16,7 @@ if not exist "node_modules\" (
 
 echo.
 echo ========================================
-echo  Frontend Starting on http://localhost:3000
+echo  Frontend Starting on http://localhost:5173
 echo ========================================
 echo.
 
