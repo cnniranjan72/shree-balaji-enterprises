@@ -119,14 +119,15 @@ export default function Invoice() {
             <thead>
               <tr className="bg-gray-100 border-b border-gray-800">
                 <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '4%' }}>Sr.</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '26%' }}>Description</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '10%' }}>HSN</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-center" style={{ width: '12%' }}>Qty</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>Rate</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '12%' }}>Taxable</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '22%' }}>Description</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '8%' }}>HSN</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-center" style={{ width: '11%' }}>Qty</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '9%' }}>Rate</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>Taxable</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-center" style={{ width: '7%' }}>GST%</th>
                 <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '9%' }}>CGST</th>
                 <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '9%' }}>SGST</th>
-                <th className="px-2 py-2 text-right" style={{ width: '12%' }}>Total</th>
+                <th className="px-2 py-2 text-right" style={{ width: '11%' }}>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -138,6 +139,7 @@ export default function Invoice() {
                   <td className="border-r border-gray-800 px-2 py-2 text-center">{item.quantity} {item.unit || ''}</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">₹{item.rate.toFixed(2)}</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.taxable_amount || 0).toFixed(2)}</td>
+                  <td className="border-r border-gray-800 px-2 py-2 text-center">{item.gst_percentage || 0}%</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.cgst || 0).toFixed(2)}</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.sgst || 0).toFixed(2)}</td>
                   <td className="px-2 py-2 text-right">₹{item.amount.toFixed(2)}</td>
