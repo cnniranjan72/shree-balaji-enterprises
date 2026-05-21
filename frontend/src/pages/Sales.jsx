@@ -360,8 +360,14 @@ export default function Sales() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {sale.customer.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {sale.items.length}
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      <div className="space-y-0.5">
+                        {sale.items.map((item, idx) => (
+                          <div key={idx} className="text-xs">
+                            {item.quantity} {item.unit || ''} — {item.description.length > 20 ? item.description.substring(0, 20) + '...' : item.description}
+                          </div>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ₹{sale.total_amount.toFixed(2)}

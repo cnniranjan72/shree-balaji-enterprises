@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { customersAPI, productsAPI, salesAPI } from '../api';
-import { Plus, Trash2, Save, Search } from 'lucide-react';
+import { Plus, Trash2, Save, Search, ChevronDown } from 'lucide-react';
+
+const ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets'];
 
 export default function CreateBill() {
   const navigate = useNavigate();
@@ -14,14 +16,17 @@ export default function CreateBill() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [activeProductDropdown, setActiveProductDropdown] = useState(null);
+  const [productHighlightIndex, setProductHighlightIndex] = useState(-1);
   const dropdownRef = useRef(null);
+  const productDropdownRefs = useRef({});
   const [items, setItems] = useState([
     {
       product_id: null,
       product_search: '',
       description: '',
       hsn_code: '',
-      unit: '',
+      unit: 'Pieces',
       quantity: 1,
       rate: 0,
       taxable_amount: 0,
@@ -54,13 +59,21 @@ export default function CreateBill() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowCustomerDropdown(false);
       }
+      // Close product dropdown if clicking outside
+      if (activeProductDropdown !== null) {
+        const ref = productDropdownRefs.current[activeProductDropdown];
+        if (ref && !ref.contains(event.target)) {
+          setActiveProductDropdown(null);
+          setProductHighlightIndex(-1);
+        }
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [activeProductDropdown]);
 
   const loadCustomers = async () => {
     try {
@@ -97,33 +110,31 @@ export default function CreateBill() {
       const sale = response.data;
       
       setSelectedCustomer(sale.customer);
+      setCustomerSearch(sale.customer.name);
       
       const saleItems = sale.items.map(item => ({
         product_id: item.product_id,
+        product_search: item.description || '',
         description: item.description,
         hsn_code: item.hsn_code || '',
-      unit: item.unit || '',
-      quantity: item.quantity,
-      rate: item.rate,
-      taxable_amount: item.taxable_amount || 0,
-      cgst: item.cgst || 0,
-      sgst: item.sgst || 0,
+        unit: item.unit || 'Pieces',
+        quantity: item.quantity,
+        rate: item.rate,
+        taxable_amount: item.taxable_amount || 0,
+        cgst: item.cgst || 0,
+        sgst: item.sgst || 0,
+        amount: item.amount || 0,
         gst_percentage: item.gst_percentage
       }));
       
       setItems(saleItems.length > 0 ? saleItems : [
-        { product_id: null, description: '', hsn_code: '', quantity: 1, rate: 0, amount: 0, gst_percentage: 0 }
+        { product_id: null, product_search: '', description: '', hsn_code: '', unit: 'Pieces', quantity: 1, rate: 0, taxable_amount: 0, cgst: 0, sgst: 0, amount: 0, gst_percentage: 0 }
       ]);
     } catch (error) {
       console.error('Error loading sale:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCustomerChange = (customerId) => {
-    const customer = customers.find(c => c.id === parseInt(customerId));
-    setSelectedCustomer(customer);
   };
 
   const handleCustomerSelect = (customer) => {
@@ -154,13 +165,18 @@ export default function CreateBill() {
     const product = products.find(p => p.id === parseInt(productId));
     if (product) {
       const newItems = [...items];
+      // Map product unit to allowed units, default to Pieces
+      let unit = product.unit || 'Pieces';
+      if (!ALLOWED_UNITS.includes(unit)) {
+        unit = 'Pieces';
+      }
       newItems[index] = {
         ...newItems[index],
         product_id: product.id,
         product_search: product.name,
         description: product.name,
         hsn_code: product.hsn_code || '',
-        unit: product.unit || '',
+        unit: unit,
         rate: product.default_price,
         gst_percentage: product.gst_percentage,
         quantity: newItems[index].quantity || 1,
@@ -173,15 +189,19 @@ export default function CreateBill() {
       };
       setItems(newItems);
     }
+    setActiveProductDropdown(null);
+    setProductHighlightIndex(-1);
   };
 
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
 
-    if (field === 'description') {
-      newItems[index].product_search = value;
+    if (field === 'product_search') {
+      newItems[index].description = value;
       newItems[index].product_id = null;
+      setActiveProductDropdown(index);
+      setProductHighlightIndex(-1);
     }
 
     const updated = {
@@ -197,13 +217,35 @@ export default function CreateBill() {
     setItems(newItems);
   };
 
+  const handleProductKeyDown = (e, index, filteredProducts) => {
+    if (!filteredProducts || filteredProducts.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setProductHighlightIndex(prev => 
+        prev < filteredProducts.length - 1 ? prev + 1 : 0
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setProductHighlightIndex(prev => 
+        prev > 0 ? prev - 1 : filteredProducts.length - 1
+      );
+    } else if (e.key === 'Enter' && productHighlightIndex >= 0) {
+      e.preventDefault();
+      handleProductSelect(index, filteredProducts[productHighlightIndex].id);
+    } else if (e.key === 'Escape') {
+      setActiveProductDropdown(null);
+      setProductHighlightIndex(-1);
+    }
+  };
+
   const addItem = () => {
     setItems([...items, {
       product_id: null,
       product_search: '',
       description: '',
       hsn_code: '',
-      unit: '',
+      unit: 'Pieces',
       quantity: 1,
       rate: 0,
       taxable_amount: 0,
@@ -300,6 +342,7 @@ export default function CreateBill() {
       </h2>
 
       <form onSubmit={handleSubmit}>
+        {/* Customer Details */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Customer Details</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -319,15 +362,14 @@ export default function CreateBill() {
                   className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
                 
-                {/* Autocomplete Dropdown */}
                 {showCustomerDropdown && (customerSearch || filteredCustomers.length > 0) && (
-                  <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
                     {filteredCustomers.length > 0 ? (
                       filteredCustomers.map(customer => (
                         <div
                           key={customer.id}
                           onClick={() => handleCustomerSelect(customer)}
-                          className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                         >
                           <div className="font-medium text-gray-900">{customer.name}</div>
                           {customer.gstin && (
@@ -339,20 +381,11 @@ export default function CreateBill() {
                         </div>
                       ))
                     ) : (
-                      <div className="px-4 py-3 text-gray-500">
-                        No customers found matching your search.
-                      </div>
+                      <div className="px-4 py-3 text-gray-500">No customers found.</div>
                     )}
                   </div>
                 )}
               </div>
-              
-              {/* Hidden select for form validation */}
-              <input
-                type="hidden"
-                required
-                value={selectedCustomer ? selectedCustomer.id : ''}
-              />
               
               {!selectedCustomer && (
                 <p className="mt-1 text-sm text-red-500">Please select a customer</p>
@@ -377,6 +410,7 @@ export default function CreateBill() {
           </div>
         </div>
 
+        {/* Items */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Items</h3>
@@ -390,150 +424,188 @@ export default function CreateBill() {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">GST%</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Taxable</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">CGST</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">SGST</th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Line Total</th>
-                  <th className="px-3 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((item, index) => {
-                  const filteredProducts = products.filter(product => {
-                    const search = item.product_search.toLowerCase();
-                    return (
-                      product.name.toLowerCase().includes(search) ||
-                      (product.hsn_code || '').toLowerCase().includes(search)
-                    );
-                  });
+          {/* Item Cards - better for complex inputs than cramped table */}
+          <div className="space-y-4">
+            {items.map((item, index) => {
+              const searchTerm = (item.product_search || '').toLowerCase();
+              const filteredProducts = searchTerm
+                ? products.filter(product =>
+                    product.name.toLowerCase().includes(searchTerm) ||
+                    (product.hsn_code || '').toLowerCase().includes(searchTerm)
+                  ).slice(0, 8)
+                : [];
+              const showDropdown = activeProductDropdown === index && filteredProducts.length > 0;
 
-                  return (
-                    <tr key={index}>
-                      <td className="px-3 py-2 align-top">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={item.product_search}
-                            onChange={(e) => handleItemChange(index, 'product_search', e.target.value)}
-                            placeholder="Search or enter product"
-                            className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          />
-                          {item.product_search && filteredProducts.length > 0 && (
-                            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                              {filteredProducts.slice(0, 6).map((product) => (
-                                <button
-                                  key={product.id}
-                                  type="button"
-                                  onClick={() => handleProductSelect(index, product.id)}
-                                  className="w-full text-left px-3 py-2 hover:bg-gray-100"
-                                >
-                                  <span className="font-medium">{product.name}</span>
-                                  <div className="text-xs text-gray-500">HSN: {product.hsn_code || 'N/A'} • {product.unit || 'Unit'} • ₹{product.default_price.toFixed(2)} • GST {product.gst_percentage}%</div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
+              return (
+                <div key={index} className="border border-gray-200 rounded-lg p-4 relative">
+                  {/* Row header */}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm font-medium text-gray-500">Item #{index + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="text-red-500 hover:text-red-700 disabled:text-gray-300"
+                      disabled={items.length === 1}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Product search + HSN row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-3">
+                    {/* Product Search */}
+                    <div className="sm:col-span-8 relative" ref={el => productDropdownRefs.current[index] = el}>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Product</label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                        <input
+                          type="text"
+                          value={item.product_search || ''}
+                          onChange={(e) => handleItemChange(index, 'product_search', e.target.value)}
+                          onFocus={() => {
+                            if (item.product_search) setActiveProductDropdown(index);
+                          }}
+                          onKeyDown={(e) => handleProductKeyDown(e, index, filteredProducts)}
+                          placeholder="Search product or type name..."
+                          className="pl-8 pr-3 py-2 w-full border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Product Dropdown - overlay style */}
+                      {showDropdown && (
+                        <div className="absolute z-[9999] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                          {filteredProducts.map((product, pIdx) => (
+                            <button
+                              key={product.id}
+                              type="button"
+                              onClick={() => handleProductSelect(index, product.id)}
+                              className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-b-0 transition-colors ${
+                                pIdx === productHighlightIndex
+                                  ? 'bg-blue-50 border-l-2 border-l-blue-500'
+                                  : 'hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="font-medium text-sm text-gray-900">{product.name}</div>
+                              <div className="flex gap-3 mt-0.5 text-xs text-gray-500">
+                                <span>HSN: {product.hsn_code || '—'}</span>
+                                <span>₹{product.default_price.toFixed(2)}</span>
+                                <span>GST {product.gst_percentage}%</span>
+                              </div>
+                            </button>
+                          ))}
                         </div>
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                          placeholder="Description"
-                          className="mt-2 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <input
-                          type="text"
-                          value={item.hsn_code}
-                          onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
-                          placeholder="HSN"
-                          className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <input
-                          type="text"
-                          value={item.unit}
+                      )}
+                    </div>
+
+                    {/* HSN */}
+                    <div className="sm:col-span-4">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">HSN Code</label>
+                      <input
+                        type="text"
+                        value={item.hsn_code}
+                        onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
+                        placeholder="HSN"
+                        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Qty, Unit, Rate, GST row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-12 gap-3 mb-3">
+                    {/* Quantity */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Qty</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Unit - Fixed dropdown */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Unit</label>
+                      <div className="relative">
+                        <select
+                          value={item.unit || 'Pieces'}
                           onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                          placeholder="Unit"
-                          className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top text-right">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          className="block w-20 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top text-right">
-                        <input
-                          type="number"
-                          step="0.01"
-                          required
-                          value={item.rate}
-                          onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                          className="block w-24 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top text-right">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.gst_percentage}
-                          onChange={(e) => handleItemChange(index, 'gst_percentage', e.target.value)}
-                          className="block w-20 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
-                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
-                        ₹{parseFloat(item.taxable_amount || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
-                        ₹{parseFloat(item.cgst || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
-                        ₹{parseFloat(item.sgst || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
-                        ₹{parseFloat(item.amount || 0).toFixed(2)}
-                      </td>
-                      <td className="px-3 py-2 align-top">
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-red-600 hover:text-red-900"
-                          disabled={items.length === 1}
+                          className="w-full appearance-none border border-gray-300 rounded-md shadow-sm py-2 pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          {ALLOWED_UNITS.map(u => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Rate */}
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Rate (₹)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* GST % */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">GST %</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.gst_percentage}
+                        onChange={(e) => handleItemChange(index, 'gst_percentage', e.target.value)}
+                        className="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    {/* Line Total (display) */}
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Line Total</label>
+                      <div className="py-2 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm font-semibold text-gray-900">
+                        ₹{parseFloat(item.amount || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GST breakdown row */}
+                  <div className="grid grid-cols-3 gap-3 bg-gray-50 rounded-md p-2">
+                    <div className="text-center">
+                      <span className="text-xs text-gray-500">Taxable</span>
+                      <p className="text-sm font-medium">₹{parseFloat(item.taxable_amount || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-xs text-gray-500">CGST</span>
+                      <p className="text-sm font-medium">₹{parseFloat(item.cgst || 0).toFixed(2)}</p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-xs text-gray-500">SGST</span>
+                      <p className="text-sm font-medium">₹{parseFloat(item.sgst || 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
+        {/* Summary */}
         <div className="bg-white shadow rounded-lg p-6 mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Summary</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Total Amount:</span>
+              <span className="text-gray-600">Taxable Amount:</span>
               <span className="font-medium">₹{totals.totalAmount}</span>
             </div>
             <div className="flex justify-between text-sm">
@@ -557,7 +629,7 @@ export default function CreateBill() {
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             <Save className="w-5 h-5 mr-2" />
-            Create Bill
+            {isEditMode ? 'Update Bill' : 'Create Bill'}
           </button>
         </div>
       </form>

@@ -1,6 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import List, Optional
+
+ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets']
 
 class CustomerBase(BaseModel):
     name: str
@@ -40,13 +42,23 @@ class SaleItemBase(BaseModel):
     description: str
     hsn_code: Optional[str] = None
     quantity: float
-    unit: Optional[str] = None
+    unit: Optional[str] = 'Pieces'
     rate: float
     taxable_amount: float = 0.0
     cgst: float = 0.0
     sgst: float = 0.0
     amount: float = 0.0
     gst_percentage: float = 0.0
+
+    @field_validator('unit', mode='before')
+    @classmethod
+    def validate_unit(cls, v):
+        if v is None or v == '':
+            return 'Pieces'
+        if v not in ALLOWED_UNITS:
+            # Accept existing data gracefully, default to Pieces for unknown
+            return 'Pieces'
+        return v
 
 class SaleItemCreate(SaleItemBase):
     pass
