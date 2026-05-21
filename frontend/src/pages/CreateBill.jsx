@@ -16,7 +16,20 @@ export default function CreateBill() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const [items, setItems] = useState([
-    { product_id: null, description: '', hsn_code: '', quantity: 1, rate: 0, amount: 0, gst_percentage: 0 }
+    {
+      product_id: null,
+      product_search: '',
+      description: '',
+      hsn_code: '',
+      unit: '',
+      quantity: 1,
+      rate: 0,
+      taxable_amount: 0,
+      cgst: 0,
+      sgst: 0,
+      amount: 0,
+      gst_percentage: 0,
+    }
   ]);
   const [loading, setLoading] = useState(false);
 
@@ -89,9 +102,12 @@ export default function CreateBill() {
         product_id: item.product_id,
         description: item.description,
         hsn_code: item.hsn_code || '',
-        quantity: item.quantity,
-        rate: item.rate,
-        amount: item.amount,
+      unit: item.unit || '',
+      quantity: item.quantity,
+      rate: item.rate,
+      taxable_amount: item.taxable_amount || 0,
+      cgst: item.cgst || 0,
+      sgst: item.sgst || 0,
         gst_percentage: item.gst_percentage
       }));
       
@@ -116,6 +132,24 @@ export default function CreateBill() {
     setShowCustomerDropdown(false);
   };
 
+  const calculateItemValues = (item) => {
+    const quantity = parseFloat(item.quantity || 0) || 0;
+    const rate = parseFloat(item.rate || 0) || 0;
+    const gst = parseFloat(item.gst_percentage || 0) || 0;
+    const lineTotal = quantity * rate;
+    const taxableAmount = gst > 0 ? lineTotal / (1 + gst / 100) : lineTotal;
+    const gstTotal = lineTotal - taxableAmount;
+    const cgst = gstTotal / 2;
+    const sgst = gstTotal / 2;
+
+    return {
+      amount: parseFloat(lineTotal.toFixed(2)),
+      taxable_amount: parseFloat(taxableAmount.toFixed(2)),
+      cgst: parseFloat(cgst.toFixed(2)),
+      sgst: parseFloat(sgst.toFixed(2)),
+    };
+  };
+
   const handleProductSelect = (index, productId) => {
     const product = products.find(p => p.id === parseInt(productId));
     if (product) {
@@ -123,11 +157,19 @@ export default function CreateBill() {
       newItems[index] = {
         ...newItems[index],
         product_id: product.id,
+        product_search: product.name,
         description: product.name,
         hsn_code: product.hsn_code || '',
+        unit: product.unit || '',
         rate: product.default_price,
         gst_percentage: product.gst_percentage,
-        amount: newItems[index].quantity * product.default_price
+        quantity: newItems[index].quantity || 1,
+        ...calculateItemValues({
+          ...newItems[index],
+          rate: product.default_price,
+          gst_percentage: product.gst_percentage,
+          quantity: newItems[index].quantity || 1,
+        })
       };
       setItems(newItems);
     }
@@ -136,16 +178,40 @@ export default function CreateBill() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
-    
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = parseFloat(newItems[index].quantity || 0) * parseFloat(newItems[index].rate || 0);
+
+    if (field === 'description') {
+      newItems[index].product_search = value;
+      newItems[index].product_id = null;
     }
-    
+
+    const updated = {
+      ...newItems[index],
+      [field]: value,
+    };
+
+    if (['quantity', 'rate', 'gst_percentage'].includes(field)) {
+      Object.assign(updated, calculateItemValues(updated));
+    }
+
+    newItems[index] = updated;
     setItems(newItems);
   };
 
   const addItem = () => {
-    setItems([...items, { product_id: null, description: '', hsn_code: '', quantity: 1, rate: 0, amount: 0, gst_percentage: 0 }]);
+    setItems([...items, {
+      product_id: null,
+      product_search: '',
+      description: '',
+      hsn_code: '',
+      unit: '',
+      quantity: 1,
+      rate: 0,
+      taxable_amount: 0,
+      cgst: 0,
+      sgst: 0,
+      amount: 0,
+      gst_percentage: 0,
+    }]);
   };
 
   const removeItem = (index) => {
@@ -160,11 +226,9 @@ export default function CreateBill() {
     let totalSGST = 0;
 
     items.forEach(item => {
-      const itemAmount = parseFloat(item.amount || 0);
-      const gst = (itemAmount * parseFloat(item.gst_percentage || 0)) / 100;
-      totalAmount += itemAmount;
-      totalCGST += gst / 2;
-      totalSGST += gst / 2;
+      totalAmount += parseFloat(item.taxable_amount || 0);
+      totalCGST += parseFloat(item.cgst || 0);
+      totalSGST += parseFloat(item.sgst || 0);
     });
 
     const grandTotal = totalAmount + totalCGST + totalSGST;
@@ -199,9 +263,13 @@ export default function CreateBill() {
           product_id: item.product_id,
           description: item.description,
           hsn_code: item.hsn_code,
+          unit: item.unit,
           quantity: parseFloat(item.quantity),
           rate: parseFloat(item.rate),
           amount: parseFloat(item.amount),
+          taxable_amount: parseFloat(item.taxable_amount),
+          cgst: parseFloat(item.cgst),
+          sgst: parseFloat(item.sgst),
           gst_percentage: parseFloat(item.gst_percentage)
         }))
       };
@@ -327,92 +395,135 @@ export default function CreateBill() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qty</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rate</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">GST%</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">GST%</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Taxable</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">CGST</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">SGST</th>
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Line Total</th>
                   <th className="px-3 py-3"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-3 py-2">
-                      <select
-                        onChange={(e) => handleProductSelect(index, e.target.value)}
-                        className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select...</option>
-                        {products.map(product => (
-                          <option key={product.id} value={product.id}>{product.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        required
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Description"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={item.hsn_code}
-                        onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
-                        className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="HSN"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                        className="block w-20 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        required
-                        value={item.rate}
-                        onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                        className="block w-24 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.gst_percentage}
-                        onChange={(e) => handleItemChange(index, 'gst_percentage', e.target.value)}
-                        className="block w-20 border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-sm font-medium">
-                      ₹{parseFloat(item.amount || 0).toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="text-red-600 hover:text-red-900"
-                        disabled={items.length === 1}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {items.map((item, index) => {
+                  const filteredProducts = products.filter(product => {
+                    const search = item.product_search.toLowerCase();
+                    return (
+                      product.name.toLowerCase().includes(search) ||
+                      (product.hsn_code || '').toLowerCase().includes(search)
+                    );
+                  });
+
+                  return (
+                    <tr key={index}>
+                      <td className="px-3 py-2 align-top">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={item.product_search}
+                            onChange={(e) => handleItemChange(index, 'product_search', e.target.value)}
+                            placeholder="Search or enter product"
+                            className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          {item.product_search && filteredProducts.length > 0 && (
+                            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                              {filteredProducts.slice(0, 6).map((product) => (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  onClick={() => handleProductSelect(index, product.id)}
+                                  className="w-full text-left px-3 py-2 hover:bg-gray-100"
+                                >
+                                  <span className="font-medium">{product.name}</span>
+                                  <div className="text-xs text-gray-500">HSN: {product.hsn_code || 'N/A'} • {product.unit || 'Unit'} • ₹{product.default_price.toFixed(2)} • GST {product.gst_percentage}%</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          value={item.description}
+                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                          placeholder="Description"
+                          className="mt-2 block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <input
+                          type="text"
+                          value={item.hsn_code}
+                          onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
+                          placeholder="HSN"
+                          className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <input
+                          type="text"
+                          value={item.unit}
+                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                          placeholder="Unit"
+                          className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          className="block w-20 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          value={item.rate}
+                          onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                          className="block w-24 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top text-right">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={item.gst_percentage}
+                          onChange={(e) => handleItemChange(index, 'gst_percentage', e.target.value)}
+                          className="block w-20 ml-auto border border-gray-300 rounded-md shadow-sm py-1 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
+                        ₹{parseFloat(item.taxable_amount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
+                        ₹{parseFloat(item.cgst || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
+                        ₹{parseFloat(item.sgst || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right text-sm font-medium">
+                        ₹{parseFloat(item.amount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="text-red-600 hover:text-red-900"
+                          disabled={items.length === 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

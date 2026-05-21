@@ -22,6 +22,31 @@ def generate_invoice_number(db: Session) -> str:
     
     return f"INV-{year}-{month:02d}-{new_num:03d}"
 
+
+def calculate_item_values(item: object) -> dict:
+    quantity = float(item.quantity or 0)
+    rate = float(item.rate or 0)
+    gst_percentage = float(item.gst_percentage or 0)
+    line_total = round(quantity * rate, 2)
+
+    if gst_percentage > 0:
+        taxable_amount = round(line_total / (1 + gst_percentage / 100), 2)
+    else:
+        taxable_amount = line_total
+
+    gst_total = round(line_total - taxable_amount, 2)
+    cgst = round(gst_total / 2, 2)
+    sgst = round(gst_total / 2, 2)
+
+    return {
+        'amount': line_total,
+        'taxable_amount': taxable_amount,
+        'cgst': cgst,
+        'sgst': sgst,
+        'gst_total': gst_total,
+    }
+
+
 def amount_to_words(amount: float) -> str:
     try:
         rupees = int(amount)
@@ -38,25 +63,21 @@ def amount_to_words(amount: float) -> str:
         return "Amount conversion error"
 
 def calculate_sale_totals(items: list) -> dict:
-    total_amount = 0.0
+    total_taxable = 0.0
     total_cgst = 0.0
     total_sgst = 0.0
-    
+    total_grand = 0.0
+
     for item in items:
-        item_amount = item.quantity * item.rate
-        item_gst = (item_amount * item.gst_percentage) / 100
-        item_cgst = item_gst / 2
-        item_sgst = item_gst / 2
-        
-        total_amount += item_amount
-        total_cgst += item_cgst
-        total_sgst += item_sgst
-    
-    grand_total = total_amount + total_cgst + total_sgst
-    
+        values = calculate_item_values(item)
+        total_taxable += values['taxable_amount']
+        total_cgst += values['cgst']
+        total_sgst += values['sgst']
+        total_grand += values['amount']
+
     return {
-        "total_amount": round(total_amount, 2),
+        "total_amount": round(total_taxable, 2),
         "cgst": round(total_cgst, 2),
         "sgst": round(total_sgst, 2),
-        "grand_total": round(grand_total, 2)
+        "grand_total": round(total_grand, 2)
     }

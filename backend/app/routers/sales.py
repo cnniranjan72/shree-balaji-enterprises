@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 from .. import models, schemas
 from ..database import get_db
-from ..utils import generate_invoice_number, calculate_sale_totals
+from ..utils import generate_invoice_number, calculate_sale_totals, calculate_item_values
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
@@ -31,14 +31,19 @@ def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
     db.flush()
 
     for item in sale.items:
+        values = calculate_item_values(item)
         db_item = models.SaleItem(
             sale_id=db_sale.id,
             product_id=item.product_id,
             description=item.description,
             hsn_code=item.hsn_code,
             quantity=item.quantity,
+            unit=getattr(item, 'unit', None),
             rate=item.rate,
-            amount=item.amount,
+            taxable_amount=values['taxable_amount'],
+            cgst=values['cgst'],
+            sgst=values['sgst'],
+            amount=values['amount'],
             gst_percentage=item.gst_percentage
         )
         db.add(db_item)
@@ -92,14 +97,19 @@ def update_sale(sale_id: int, sale: schemas.SaleCreate, db: Session = Depends(ge
 
     # Add new items
     for item in sale.items:
+        values = calculate_item_values(item)
         db_item = models.SaleItem(
             sale_id=db_sale.id,
             product_id=item.product_id,
             description=item.description,
             hsn_code=item.hsn_code,
             quantity=item.quantity,
+            unit=getattr(item, 'unit', None),
             rate=item.rate,
-            amount=item.amount,
+            taxable_amount=values['taxable_amount'],
+            cgst=values['cgst'],
+            sgst=values['sgst'],
+            amount=values['amount'],
             gst_percentage=item.gst_percentage
         )
         db.add(db_item)

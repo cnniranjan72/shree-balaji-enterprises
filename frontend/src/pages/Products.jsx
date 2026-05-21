@@ -11,6 +11,7 @@ export default function Products() {
   const [formData, setFormData] = useState({
     name: '',
     hsn_code: '',
+    unit: '',
     default_price: '',
     gst_percentage: '',
   });
@@ -42,7 +43,7 @@ export default function Products() {
       } else {
         await productsAPI.create(data);
       }
-      setFormData({ name: '', hsn_code: '', default_price: '', gst_percentage: '' });
+      setFormData({ name: '', hsn_code: '', unit: '', default_price: '', gst_percentage: '' });
       setShowForm(false);
       setEditingProduct(null);
       loadProducts();
@@ -56,6 +57,7 @@ export default function Products() {
     setFormData({
       name: product.name,
       hsn_code: product.hsn_code || '',
+      unit: product.unit || '',
       default_price: product.default_price.toString(),
       gst_percentage: product.gst_percentage.toString(),
     });
@@ -111,7 +113,7 @@ export default function Products() {
           onClick={() => {
             setShowForm(!showForm);
             setEditingProduct(null);
-            setFormData({ name: '', hsn_code: '', default_price: '', gst_percentage: '' });
+            setFormData({ name: '', hsn_code: '', unit: '', unit: '', default_price: '', gst_percentage: '' });
           }}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
         >
@@ -147,6 +149,15 @@ export default function Products() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700">Unit</label>
+                <input
+                  type="text"
+                  value={formData.unit}
+                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700">Default Price *</label>
                 <input
                   type="number"
@@ -175,7 +186,7 @@ export default function Products() {
                 onClick={() => {
                   setShowForm(false);
                   setEditingProduct(null);
-                  setFormData({ name: '', hsn_code: '', default_price: '', gst_percentage: '' });
+                  setFormData({ name: '', hsn_code: '', unit: '', default_price: '', gst_percentage: '' });
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
@@ -241,6 +252,9 @@ export default function Products() {
                   HSN Code
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -271,6 +285,9 @@ export default function Products() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {product.hsn_code || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {product.unit || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     ₹{product.default_price.toFixed(2)}

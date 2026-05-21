@@ -21,6 +21,7 @@ class Customer(CustomerBase):
 class ProductBase(BaseModel):
     name: str
     hsn_code: Optional[str] = None
+    unit: Optional[str] = None
     default_price: float
     gst_percentage: float = 0.0
 
@@ -39,8 +40,12 @@ class SaleItemBase(BaseModel):
     description: str
     hsn_code: Optional[str] = None
     quantity: float
+    unit: Optional[str] = None
     rate: float
-    amount: float
+    taxable_amount: float = 0.0
+    cgst: float = 0.0
+    sgst: float = 0.0
+    amount: float = 0.0
     gst_percentage: float = 0.0
 
 class SaleItemCreate(SaleItemBase):

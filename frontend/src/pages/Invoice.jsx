@@ -8,6 +8,7 @@ export default function Invoice() {
   const [sale, setSale] = useState(null);
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [printTimestamp] = useState(new Date());
 
   useEffect(() => {
     loadInvoice();
@@ -99,12 +100,13 @@ export default function Invoice() {
             <h2 className="text-xl font-bold">TAX INVOICE</h2>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="font-bold">Invoice No: {sale.invoice_number}</p>
               <p>Date: {new Date(sale.date).toLocaleDateString('en-IN')}</p>
+              <p>Printed on: {printTimestamp.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
-            <div className="text-right">
+            <div className="text-left md:text-right">
               <p className="font-bold">Bill To:</p>
               <p className="font-semibold">{sale.customer.name}</p>
               {sale.customer.gstin && <p>GSTIN: {sale.customer.gstin}</p>}
@@ -116,13 +118,16 @@ export default function Invoice() {
           <table className="w-full border border-gray-800 mb-4">
             <thead>
               <tr className="bg-gray-100 border-b border-gray-800">
-                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '5%' }}>Sr.</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '35%' }}>Description</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '4%' }}>Sr.</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '26%' }}>Description</th>
                 <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '10%' }}>HSN</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>Qty</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '12%' }}>Rate</th>
-                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '8%' }}>GST%</th>
-                <th className="px-2 py-2 text-right" style={{ width: '20%' }}>Amount</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-left" style={{ width: '8%' }}>Unit</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '8%' }}>Qty</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>Rate</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>Taxable</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>CGST</th>
+                <th className="border-r border-gray-800 px-2 py-2 text-right" style={{ width: '10%' }}>SGST</th>
+                <th className="px-2 py-2 text-right" style={{ width: '14%' }}>Line Total</th>
               </tr>
             </thead>
             <tbody>
@@ -131,9 +136,12 @@ export default function Invoice() {
                   <td className="border-r border-gray-800 px-2 py-2">{index + 1}</td>
                   <td className="border-r border-gray-800 px-2 py-2">{item.description}</td>
                   <td className="border-r border-gray-800 px-2 py-2">{item.hsn_code || '-'}</td>
+                  <td className="border-r border-gray-800 px-2 py-2">{item.unit || '-'}</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">{item.quantity}</td>
                   <td className="border-r border-gray-800 px-2 py-2 text-right">₹{item.rate.toFixed(2)}</td>
-                  <td className="border-r border-gray-800 px-2 py-2 text-right">{item.gst_percentage}%</td>
+                  <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.taxable_amount || 0).toFixed(2)}</td>
+                  <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.cgst || 0).toFixed(2)}</td>
+                  <td className="border-r border-gray-800 px-2 py-2 text-right">₹{(item.sgst || 0).toFixed(2)}</td>
                   <td className="px-2 py-2 text-right">₹{item.amount.toFixed(2)}</td>
                 </tr>
               ))}
