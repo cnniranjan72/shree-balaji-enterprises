@@ -1,14 +1,17 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Home, Users, Package, FileText, Download } from 'lucide-react';
+import { Home, Users, Package, FileText, Download, ShoppingCart, Truck } from 'lucide-react';
 import { businessAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useMode } from '../contexts/ModeContext.jsx';
 import PinOverlay from './PinOverlay';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [businessName, setBusinessName] = useState('Shree Balaji Enterprises');
   const { showPinOverlay } = useAuth();
+  const { mode, isSales, isPurchases, switchMode } = useMode();
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -22,7 +25,7 @@ export default function Layout({ children }) {
     fetchBusinessInfo();
   }, []);
 
-  const navItems = [
+  const salesNavItems = [
     { path: '/', icon: Home, label: 'Dashboard' },
     { path: '/customers', icon: Users, label: 'Customers' },
     { path: '/products', icon: Package, label: 'Products' },
@@ -30,6 +33,25 @@ export default function Layout({ children }) {
     { path: '/sales', icon: FileText, label: 'Sales' },
     { path: '/export', icon: Download, label: 'Export' },
   ];
+
+  const purchaseNavItems = [
+    { path: '/purchases', icon: Home, label: 'Dashboard' },
+    { path: '/purchase-suppliers', icon: Truck, label: 'Suppliers' },
+    { path: '/purchase-products', icon: Package, label: 'Products' },
+    { path: '/create-purchase', icon: FileText, label: 'Create Purchase' },
+    { path: '/purchases-history', icon: ShoppingCart, label: 'Purchase History' },
+    { path: '/purchase-export', icon: Download, label: 'Export' },
+  ];
+
+  const navItems = isPurchases ? purchaseNavItems : salesNavItems;
+
+  const handleModeSwitch = (nextMode) => {
+    if (nextMode !== mode) {
+      switchMode(nextMode);
+      // Navigate to the module's home page so no stale sales route remains active
+      navigate(nextMode === 'purchases' ? '/purchases' : '/');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,6 +85,30 @@ export default function Layout({ children }) {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Sales | Purchases Toggle */}
+            <div className="flex items-center">
+              <button
+                onClick={() => handleModeSwitch('sales')}
+                className={`px-4 py-2 rounded-l-lg text-sm font-medium transition-colors ${
+                  isSales
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Sales
+              </button>
+              <button
+                onClick={() => handleModeSwitch('purchases')}
+                className={`px-4 py-2 rounded-r-lg text-sm font-medium transition-colors ${
+                  isPurchases
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Purchases
+              </button>
             </div>
           </div>
         </div>

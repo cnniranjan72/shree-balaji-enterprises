@@ -63,3 +63,78 @@ class SaleItem(Base):
     
     sale = relationship("Sale", back_populates="items")
     product = relationship("Product", back_populates="sale_items")
+
+
+# ============================================================
+# PURCHASES MODULE (strictly isolated from Sales)
+# Separate tables. No foreign keys to sales-side tables.
+# ============================================================
+
+class PurchaseSupplier(Base):
+    """Vendors/parties we buy from. Completely separate from customers."""
+    __tablename__ = "purchase_suppliers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    gstin = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    phone = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    purchases = relationship("Purchase", back_populates="supplier")
+
+
+class PurchaseProduct(Base):
+    """Item catalog used in purchase bills. Separate from sales products."""
+    __tablename__ = "purchase_products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    hsn_code = Column(String, nullable=True)
+    unit = Column(String, nullable=True)
+    default_price = Column(Float, nullable=False, default=0.0)
+    gst_percentage = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    purchase_items = relationship("PurchaseItem", back_populates="product")
+
+
+class Purchase(Base):
+    __tablename__ = "purchases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bill_number = Column(String, unique=True, nullable=False, index=True)
+    supplier_id = Column(Integer, ForeignKey("purchase_suppliers.id"), nullable=False)
+    invoice_date = Column(DateTime, default=datetime.utcnow)
+    total_amount = Column(Float, nullable=False, default=0.0)
+    cgst = Column(Float, default=0.0)
+    sgst = Column(Float, default=0.0)
+    grand_total = Column(Float, nullable=False, default=0.0)
+    amount_paid = Column(Float, nullable=False, default=0.0)
+    balance_due = Column(Float, nullable=False, default=0.0)
+    payment_status = Column(String, default="Unpaid")  # Paid / Partial / Unpaid
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("PurchaseSupplier", back_populates="purchases")
+    items = relationship("PurchaseItem", back_populates="purchase", cascade="all, delete-orphan")
+
+
+class PurchaseItem(Base):
+    __tablename__ = "purchase_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    purchase_id = Column(Integer, ForeignKey("purchases.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("purchase_products.id"), nullable=True)
+    description = Column(String, nullable=False)
+    hsn_code = Column(String, nullable=True)
+    quantity = Column(Float, nullable=False)
+    unit = Column(String, nullable=True)
+    rate = Column(Float, nullable=False)
+    taxable_amount = Column(Float, nullable=False, default=0.0)
+    cgst = Column(Float, nullable=False, default=0.0)
+    sgst = Column(Float, nullable=False, default=0.0)
+    amount = Column(Float, nullable=False)
+    gst_percentage = Column(Float, default=0.0)
+
+    purchase = relationship("Purchase", back_populates="items")
+    product = relationship("PurchaseProduct", back_populates="purchase_items")

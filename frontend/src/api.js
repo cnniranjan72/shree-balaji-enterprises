@@ -190,4 +190,172 @@ export const businessAPI = {
   },
 };
 
+export const purchaseSuppliersAPI = {
+  getAll: async (search = '') => {
+    try {
+      return await api.get(`/purchase-suppliers?search=${search}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/purchase-suppliers/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/purchase-suppliers', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/purchase-suppliers/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/purchase-suppliers/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const purchaseProductsAPI = {
+  getAll: async (search = '') => {
+    try {
+      return await api.get(`/purchase-products?search=${search}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/purchase-products/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/purchase-products', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/purchase-products/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/purchase-products/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const purchasesAPI = {
+  getAll: async () => {
+    try {
+      return await api.get('/purchases');
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getById: async (id) => {
+    try {
+      return await api.get(`/purchases/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  getByBill: async (billNumber) => {
+    try {
+      return await api.get(`/purchases/bill/${billNumber}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  create: async (data) => {
+    try {
+      return await api.post('/purchases', data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  update: async (id, data) => {
+    try {
+      return await api.put(`/purchases/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  updatePayment: async (id, amountPaid) => {
+    try {
+      return await api.patch(`/purchases/${id}/payment`, { amount_paid: amountPaid });
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  delete: async (id) => {
+    try {
+      return await api.delete(`/purchases/${id}`);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const purchaseExportAPI = {
+  monthly: async (month, year) => {
+    try {
+      return await api.get(`/purchase-export/monthly?month=${month}&year=${year}`, {
+        responseType: 'blob',
+      });
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  all: async () => {
+    try {
+      return await api.get('/purchase-export/all', {
+        responseType: 'blob',
+      });
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+};
+
 export default api;

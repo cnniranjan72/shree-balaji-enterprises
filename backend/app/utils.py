@@ -89,3 +89,49 @@ def calculate_sale_totals(items: list) -> dict:
         "sgst": round(total_sgst, 2),
         "grand_total": round(total_grand, 2)
     }
+
+
+def generate_purchase_bill_number(db: Session) -> str:
+    """Generate a purchase bill number: PB-YYYY-XXX. Independent from sales invoice numbers."""
+    now = datetime.now()
+    year = now.year
+
+    last_purchase = db.query(models.Purchase).filter(
+        extract('year', models.Purchase.invoice_date) == year
+    ).order_by(models.Purchase.id.desc()).first()
+
+    if last_purchase:
+        try:
+            last_num = int(last_purchase.bill_number.split('-')[-1])
+            new_num = last_num + 1
+        except (ValueError, IndexError):
+            count = db.query(models.Purchase).filter(
+                extract('year', models.Purchase.invoice_date) == year
+            ).count()
+            new_num = count + 1
+    else:
+        new_num = 1
+
+    return f"PB-{year}-{new_num:03d}"
+
+
+def calculate_purchase_totals(items: list) -> dict:
+    """Calculate totals for purchase line items (same GST math as sales)."""
+    total_taxable = 0.0
+    total_cgst = 0.0
+    total_sgst = 0.0
+    total_grand = 0.0
+
+    for item in items:
+        values = calculate_item_values(item)
+        total_taxable += values['taxable_amount']
+        total_cgst += values['cgst']
+        total_sgst += values['sgst']
+        total_grand += values['amount']
+
+    return {
+        "total_amount": round(total_taxable, 2),
+        "cgst": round(total_cgst, 2),
+        "sgst": round(total_sgst, 2),
+        "grand_total": round(total_grand, 2)
+    }
