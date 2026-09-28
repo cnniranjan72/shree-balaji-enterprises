@@ -435,7 +435,7 @@ export default function Sales() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {sale.status === "deleted" ? (
-                        <React.Fragment>
+                        <>
                           <Link
                             to={`/purchase-view/${sale.id}`}
                             className="text-blue-600 hover:text-blue-900 mr-3"
@@ -455,9 +455,9 @@ export default function Sales() {
                             <RotateCcw className="w-4 h-4 inline" />
                             Recover
                           </button>
-                        </React.Fragment>
+                        </>
                       ) : (
-                        <React.Fragment>
+                        <>
                           <Link
                             to={`/invoice/${sale.id}`}
                             className="text-blue-600 hover:text-blue-900 mr-3"
@@ -477,7 +477,7 @@ export default function Sales() {
                             <Trash2 className="w-4 h-4 inline" />
                             Delete
                           </button>
-                        </React.Fragment>
+                        </>
                       )}
                     </td>
                   </tr>
