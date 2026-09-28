@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { salesAPI } from '../api';
-import { Eye, Trash2, Edit, Search, Filter, X, CheckSquare, Square } from 'lucide-react';
+import { Eye, Trash2, Edit, Search, Filter, X, CheckSquare, Square, RotateCcw } from 'lucide-react';
 
 export default function Sales() {
   const [sales, setSales] = useState([]);
@@ -17,18 +17,19 @@ export default function Sales() {
     minAmount: '',
     maxAmount: ''
   });
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
     loadSales();
-  }, []);
+  }, [showDeleted]);
 
   useEffect(() => {
     applyFilters();
-  }, [sales, searchTerm, filters]);
+  }, [sales, searchTerm, filters, showDeleted]);
 
   const loadSales = async () => {
     try {
-      const response = await salesAPI.getAll();
+      const response = await salesAPI.getAll(showDeleted);
       setSales(response.data);
       setLoading(false);
     } catch (error) {
@@ -94,7 +95,18 @@ export default function Sales() {
 
   const hasActiveFilters = searchTerm || Object.values(filters).some(v => v);
 
-  const handleDelete = async (id) => {
+  const handleRecover = async (id) => {
+    if (window.confirm('Are you sure you want to recover this sale?')) {
+      try {
+        await salesAPI.recover(id);
+        loadSales();
+      } catch (error) {
+        console.error('Error recovering sale:', error);
+      }
+    }
+  };
+
+  const handleSoftDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this sale?')) {
       try {
         await salesAPI.delete(id);
@@ -102,6 +114,14 @@ export default function Sales() {
       } catch (error) {
         console.error('Error deleting sale:', error);
       }
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (showDeleted) {
+      await handleRecover(id);
+    } else {
+      await handleSoftDelete(id);
     }
   };
 
@@ -143,13 +163,45 @@ export default function Sales() {
     <div className="px-4 sm:px-0">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Sales History</h2>
-        <Link
-          to="/create-bill"
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Create New Bill
-        </Link>
+        
+        {/* Active / Deleted toggle */}
+        <div className="flex items-center">
+          <button
+            onClick={() => setShowDeleted(false)}
+            className={`px-3 py-1.5 rounded-l-md text-sm font-medium transition-colors ${
+              !showDeleted
+                ? 'bg-blue-600 text-white shadow'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Active
+          </button>
+          <button
+            onClick={() => setShowDeleted(true)}
+            className={`px-3 py-1.5 rounded-r-md text-sm font-medium transition-colors ${
+              showDeleted
+                ? 'bg-blue-600 text-white shadow'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Deleted
+          </button>
+        </div>
+        
+        {/* Sales counter showing total and deleted count */}
+        {showDeleted && (
+          <span className="ml-4 text-sm text-gray-500">
+            {filteredSales.length} of {sales.length} sales showing (deleted)
+          </span>
+        )}
       </div>
+      
+      <Link
+        to="/create-bill"
+        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+      >
+        Create New Bill
+      </Link>
 
       {/* Search and Filter Bar */}
       <div className="bg-white shadow rounded-lg p-4 mb-4">
@@ -382,24 +434,51 @@ export default function Sales() {
                       ₹{sale.grand_total.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link
-                        to={`/invoice/${sale.id}`}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        <Eye className="w-4 h-4 inline" />
-                      </Link>
-                      <Link
-                        to={`/create-bill/${sale.id}`}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                      >
-                        <Edit className="w-4 h-4 inline" />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(sale.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="w-4 h-4 inline" />
-                      </button>
+                      {sale.status === "deleted" ? (
+                        <React.Fragment>
+                          <Link
+                            to={`/purchase-view/${sale.id}`}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            <Eye className="w-4 h-4 inline" />
+                          </Link>
+                          <Link
+                            to={`/create-bill/${sale.id}`}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            <Edit className="w-4 h-4 inline" />
+                          </Link>
+                          <button
+                            onClick={() => handleRecover(sale.id)}
+                            className="text-green-600 hover:text-green-900"
+                          >
+                            <RotateCcw className="w-4 h-4 inline" />
+                            Recover
+                          </button>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          <Link
+                            to={`/invoice/${sale.id}`}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            <Eye className="w-4 h-4 inline" />
+                          </Link>
+                          <Link
+                            to={`/create-bill/${sale.id}`}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            <Edit className="w-4 h-4 inline" />
+                          </Link>
+                          <button
+                            onClick={() => handleSoftDelete(sale.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="w-4 h-4 inline" />
+                            Delete
+                          </button>
+                        </React.Fragment>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,20 @@ from ..utils import generate_invoice_number, calculate_sale_totals, calculate_it
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
+
+def _soft_delete_sale(db: Session, sale_id: int) -> models.Sale:
+    """Soft delete a sale by setting status='deleted'. Returns the sale."""
+    db_sale = db.query(models.Sale).filter(models.Sale.id == sale_id).first()
+    if not db_sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    if db_sale.status == "deleted":
+        raise HTTPException(status_code=400, detail="Sale is already deleted")
+    db_sale.status = "deleted"
+    db.commit()
+    db.refresh(db_sale)
+    return db_sale
+
+
 @router.post("", response_model=schemas.SaleWithDetails)
 def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
     customer = db.query(models.Customer).filter(models.Customer.id == sale.customer_id).first()
@@ -24,7 +38,8 @@ def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
         total_amount=totals["total_amount"],
         cgst=totals["cgst"],
         sgst=totals["sgst"],
-        grand_total=totals["grand_total"]
+        grand_total=totals["grand_total"],
+        status="active"
     )
 
     db.add(db_sale)
@@ -53,10 +68,15 @@ def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
 
     return db_sale
 
+
 @router.get("", response_model=List[schemas.SaleWithDetails])
-def get_sales(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    sales = db.query(models.Sale).order_by(models.Sale.date.desc()).offset(skip).limit(limit).all()
+def get_sales(skip: int = 0, limit: int = 100, show_deleted: bool = False, db: Session = Depends(get_db)):
+    query = db.query(models.Sale)
+    if not show_deleted:
+        query = query.filter(models.Sale.status != "deleted")
+    sales = query.order_by(models.Sale.date.desc()).offset(skip).limit(limit).all()
     return sales
+
 
 @router.get("/{sale_id}", response_model=schemas.SaleWithDetails)
 def get_sale(sale_id: int, db: Session = Depends(get_db)):
@@ -65,6 +85,7 @@ def get_sale(sale_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Sale not found")
     return sale
 
+
 @router.get("/invoice/{invoice_number}", response_model=schemas.SaleWithDetails)
 def get_sale_by_invoice(invoice_number: str, db: Session = Depends(get_db)):
     sale = db.query(models.Sale).filter(models.Sale.invoice_number == invoice_number).first()
@@ -72,11 +93,15 @@ def get_sale_by_invoice(invoice_number: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Invoice not found")
     return sale
 
+
 @router.put("/{sale_id}", response_model=schemas.SaleWithDetails)
 def update_sale(sale_id: int, sale: schemas.SaleCreate, db: Session = Depends(get_db)):
     db_sale = db.query(models.Sale).filter(models.Sale.id == sale_id).first()
     if not db_sale:
         raise HTTPException(status_code=404, detail="Sale not found")
+
+    if db_sale.status == "deleted":
+        raise HTTPException(status_code=400, detail="Cannot update a deleted sale. Recover it first.")
 
     customer = db.query(models.Customer).filter(models.Customer.id == sale.customer_id).first()
     if not customer:
@@ -94,6 +119,7 @@ def update_sale(sale_id: int, sale: schemas.SaleCreate, db: Session = Depends(ge
     db_sale.cgst = totals["cgst"]
     db_sale.sgst = totals["sgst"]
     db_sale.grand_total = totals["grand_total"]
+    db_sale.status = "active"  # Reactivate if it was previously soft-deleted
 
     # Add new items
     for item in sale.items:
@@ -119,12 +145,22 @@ def update_sale(sale_id: int, sale: schemas.SaleCreate, db: Session = Depends(ge
 
     return db_sale
 
-@router.delete("/{sale_id}")
-def delete_sale(sale_id: int, db: Session = Depends(get_db)):
+
+@router.patch("/{sale_id}/recover")
+def recover_sale(sale_id: int, db: Session = Depends(get_db)):
+    """Recover a soft-deleted sale by setting status='active'."""
     db_sale = db.query(models.Sale).filter(models.Sale.id == sale_id).first()
     if not db_sale:
         raise HTTPException(status_code=404, detail="Sale not found")
-
-    db.delete(db_sale)
+    if db_sale.status != "deleted":
+        raise HTTPException(status_code=400, detail="Sale is not deleted")
+    db_sale.status = "active"
     db.commit()
-    return {"message": "Sale deleted successfully"}
+    db.refresh(db_sale)
+    return {"message": "Sale recovered successfully", "sale_id": sale_id}
+
+
+@router.delete("/{sale_id}")
+def delete_sale(sale_id: int, db: Session = Depends(get_db)):
+    """Soft delete a sale (sets status='deleted')."""
+    return _soft_delete_sale(db, sale_id)

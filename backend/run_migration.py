@@ -32,6 +32,7 @@ def run_migrations():
         conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS cgst FLOAT DEFAULT 0.0"))
         conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS sgst FLOAT DEFAULT 0.0"))
         conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()"))
+        conn.execute(text("ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active'"))
         print("  ✓ Sales table updated")
         
         # Customers table

@@ -39,6 +39,7 @@ class Sale(Base):
     cgst = Column(Float, default=0.0)
     sgst = Column(Float, default=0.0)
     grand_total = Column(Float, nullable=False)
+    status = Column(String, default="active")  # active / deleted
     created_at = Column(DateTime, default=datetime.utcnow)
     
     customer = relationship("Customer", back_populates="sales")

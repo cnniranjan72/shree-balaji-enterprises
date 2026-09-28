@@ -236,7 +236,36 @@ export default function CreatePurchaseBill() {
       );
     } else if (e.key === 'Enter' && productHighlightIndex >= 0) {
       e.preventDefault();
-      handleProductSelect(index, filteredProducts[productHighlightIndex].id);
+      const selected = filteredProducts[productHighlightIndex];
+      // If product exists in catalog, select it; otherwise add manual entry
+      if (selected && products.find(p => p.name.toLowerCase() === selected.name.toLowerCase())) {
+        handleProductSelect(index, selected.id);
+      } else {
+        // Add new product manually and select it
+        const newProductName = filteredProducts[productHighlightIndex].name;
+        handleItemChange(index, 'product_search', newProductName);
+        setTimeout(() => {
+          // Create the new product via API so it persists in the catalog
+          purchaseProductsAPI.create({
+            name: newProductName,
+            hsn_code: '',
+            unit: 'Pieces',
+            default_price: 0,
+            gst_percentage: 0
+          }).then(() => {
+            loadProducts().then(() => {
+              setProducts(prev => [...prev, {
+                id: prev.length + 1,
+                name: newProductName,
+                hsn_code: '',
+                unit: 'Pieces',
+                default_price: 0,
+                gst_percentage: 0
+              }]);
+            });
+          }).catch(() => {});
+        }, 100);
+      }
     } else if (e.key === 'Escape') {
       setActiveProductDropdown(null);
       setProductHighlightIndex(-1);
@@ -464,7 +493,7 @@ export default function CreatePurchaseBill() {
                 ? products.filter(product =>
                     product.name.toLowerCase().includes(searchTerm) ||
                     (product.hsn_code || '').toLowerCase().includes(searchTerm)
-                  ).slice(0, 8)
+                  )
                 : [];
               const showDropdown = activeProductDropdown === index && filteredProducts.length > 0;
 
