@@ -20,6 +20,7 @@ export default function Sales() {
   const [showDeleted, setShowDeleted] = useState(false);
 
   useEffect(() => {
+    setSelectedSales([]);
     loadSales();
   }, [showDeleted]);
 
@@ -117,14 +118,6 @@ export default function Sales() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (showDeleted) {
-      await handleRecover(id);
-    } else {
-      await handleSoftDelete(id);
-    }
-  };
-
   const handleSelectSale = (saleId) => {
     setSelectedSales(prev => 
       prev.includes(saleId) 
@@ -141,16 +134,19 @@ export default function Sales() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkAction = async () => {
     if (selectedSales.length === 0) return;
-    
-    if (window.confirm(`Are you sure you want to delete ${selectedSales.length} sale(s)?`)) {
+
+    const verb = showDeleted ? 'recover' : 'delete';
+    if (window.confirm(`Are you sure you want to ${verb} ${selectedSales.length} sale(s)?`)) {
       try {
-        await Promise.all(selectedSales.map(id => salesAPI.delete(id)));
+        await Promise.all(
+          selectedSales.map(id => (showDeleted ? salesAPI.recover(id) : salesAPI.delete(id)))
+        );
         setSelectedSales([]);
         loadSales();
       } catch (error) {
-        console.error('Error deleting sales:', error);
+        console.error(`Error running bulk ${verb}:`, error);
       }
     }
   };
@@ -161,47 +157,49 @@ export default function Sales() {
 
   return (
     <div className="px-4 sm:px-0">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Sales History</h2>
-        
-        {/* Active / Deleted toggle */}
-        <div className="flex items-center">
-          <button
-            onClick={() => setShowDeleted(false)}
-            className={`px-3 py-1.5 rounded-l-md text-sm font-medium transition-colors ${
-              !showDeleted
-                ? 'bg-blue-600 text-white shadow'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+
+        <div className="flex items-center gap-3">
+          {/* Active / Deleted toggle, sitting left of Create New Bill */}
+          <div className="flex items-center">
+            <button
+              onClick={() => setShowDeleted(false)}
+              className={`px-3 py-2 rounded-l-md text-sm font-medium transition-colors ${
+                !showDeleted
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Active
+            </button>
+            <button
+              onClick={() => setShowDeleted(true)}
+              className={`px-3 py-2 rounded-r-md text-sm font-medium transition-colors ${
+                showDeleted
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Deleted
+            </button>
+          </div>
+
+          <Link
+            to="/create-bill"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
           >
-            Active
-          </button>
-          <button
-            onClick={() => setShowDeleted(true)}
-            className={`px-3 py-1.5 rounded-r-md text-sm font-medium transition-colors ${
-              showDeleted
-                ? 'bg-blue-600 text-white shadow'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Deleted
-          </button>
+            Create New Bill
+          </Link>
         </div>
-        
-        {/* Sales counter showing total and deleted count */}
-        {showDeleted && (
-          <span className="ml-4 text-sm text-gray-500">
-            {filteredSales.length} of {sales.length} sales showing (deleted)
-          </span>
-        )}
       </div>
-      
-      <Link
-        to="/create-bill"
-        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-      >
-        Create New Bill
-      </Link>
+
+      {showDeleted && (
+        <div className="mb-4 rounded-md bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+          Showing deleted bills. They stay in the database with status
+          <span className="font-mono"> deleted</span> and can be recovered.
+        </div>
+      )}
 
       {/* Search and Filter Bar */}
       <div className="bg-white shadow rounded-lg p-4 mb-4">
@@ -305,18 +303,18 @@ export default function Sales() {
 
       {/* Results Count and Bulk Actions */}
       <div className="flex justify-between items-center mb-4">
-        {hasActiveFilters && (
-          <div className="text-sm text-gray-600">
-            Showing {filteredSales.length} of {sales.length} sales
-          </div>
-        )}
+        <div className="text-sm text-gray-600">
+          Showing {filteredSales.length} of {sales.length} {showDeleted ? 'deleted' : 'active'} sales
+        </div>
         {selectedSales.length > 0 && (
           <button
-            onClick={handleBulkDelete}
-            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+            onClick={handleBulkAction}
+            className={`inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
+              showDeleted ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+            }`}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Selected ({selectedSales.length})
+            {showDeleted ? <RotateCcw className="w-4 h-4 mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            {showDeleted ? 'Recover' : 'Delete'} Selected ({selectedSales.length})
           </button>
         )}
       </div>
@@ -324,13 +322,17 @@ export default function Sales() {
       <div className="bg-white shadow rounded-lg overflow-hidden">
         {sales.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">No sales found</p>
-            <Link
-              to="/create-bill"
-              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Create First Bill
-            </Link>
+            <p className="text-gray-500">
+              {showDeleted ? 'No deleted bills' : 'No sales found'}
+            </p>
+            {!showDeleted && (
+              <Link
+                to="/create-bill"
+                className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Create First Bill
+              </Link>
+            )}
           </div>
         ) : filteredSales.length === 0 ? (
           <div className="text-center py-12">
@@ -347,7 +349,7 @@ export default function Sales() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                     <button
                       onClick={handleSelectAll}
                       className="text-gray-500 hover:text-gray-700"
@@ -359,39 +361,41 @@ export default function Sales() {
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Invoice No
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Customer
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Items
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     CGST
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     SGST
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Grand Total
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="sticky right-0 z-10 bg-gray-50 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredSales.map((sale) => (
-                  <tr key={sale.id} className={selectedSales.includes(sale.id) ? 'bg-blue-50 hover:bg-gray-50' : 'hover:bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {filteredSales.map((sale) => {
+                  const rowBg = selectedSales.includes(sale.id) ? 'bg-blue-50' : 'bg-white';
+                  return (
+                  <tr key={sale.id} className={rowBg}>
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <button
                         onClick={() => handleSelectSale(sale.id)}
                         className="text-gray-500 hover:text-gray-700"
@@ -403,85 +407,74 @@ export default function Sales() {
                         )}
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                       {sale.invoice_number}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(sale.date).toLocaleDateString('en-IN')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                       {sale.customer.name}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    <td className="px-3 py-4 text-sm text-gray-500 max-w-[14rem]">
                       <div className="space-y-0.5">
                         {sale.items.map((item, idx) => (
-                          <div key={idx} className="text-xs">
-                            {item.quantity} {item.unit || ''} — {item.description.length > 20 ? item.description.substring(0, 20) + '...' : item.description}
+                          <div key={idx} className="text-xs truncate" title={`${item.quantity} ${item.unit || ''} — ${item.description}`}>
+                            {item.quantity} {item.unit || ''} — {item.description}
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                       ₹{sale.total_amount.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       ₹{sale.cgst.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       ₹{sale.sgst.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                       ₹{sale.grand_total.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {sale.status === "deleted" ? (
-                        <>
-                          <Link
-                            to={`/purchase-view/${sale.id}`}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            <Eye className="w-4 h-4 inline" />
-                          </Link>
-                          <Link
-                            to={`/create-bill/${sale.id}`}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            <Edit className="w-4 h-4 inline" />
-                          </Link>
+                    <td className={`sticky right-0 z-10 ${rowBg} px-3 py-4 whitespace-nowrap text-right text-sm font-medium`}>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          to={`/invoice/${sale.id}`}
+                          title="View invoice"
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          to={`/create-bill/${sale.id}`}
+                          title="Edit bill"
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                        {sale.status === 'deleted' ? (
                           <button
                             onClick={() => handleRecover(sale.id)}
+                            title="Recover bill"
                             className="text-green-600 hover:text-green-900"
                           >
-                            <RotateCcw className="w-4 h-4 inline" />
-                            Recover
+                            <RotateCcw className="w-4 h-4" />
                           </button>
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            to={`/invoice/${sale.id}`}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            <Eye className="w-4 h-4 inline" />
-                          </Link>
-                          <Link
-                            to={`/create-bill/${sale.id}`}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            <Edit className="w-4 h-4 inline" />
-                          </Link>
+                        ) : (
                           <button
                             onClick={() => handleSoftDelete(sale.id)}
+                            title="Delete bill"
                             className="text-red-600 hover:text-red-900"
                           >
-                            <Trash2 className="w-4 h-4 inline" />
-                            Delete
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                        </>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

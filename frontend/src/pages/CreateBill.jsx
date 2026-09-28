@@ -283,6 +283,59 @@ export default function CreateBill() {
     };
   };
 
+  // Items typed by hand (no product picked from the dropdown) are added to the
+  // product catalog so they're searchable next time. Returns the items with
+  // product_id filled in wherever we could match or create one.
+  const resolveProductIds = async (validItems) => {
+    const byName = new Map(
+      products.map(p => [p.name.trim().toLowerCase(), p])
+    );
+    let createdAny = false;
+
+    const resolved = [];
+    for (const item of validItems) {
+      if (item.product_id) {
+        resolved.push(item);
+        continue;
+      }
+
+      const name = (item.description || '').trim();
+      const key = name.toLowerCase();
+      if (!name) {
+        resolved.push(item);
+        continue;
+      }
+
+      const existing = byName.get(key);
+      if (existing) {
+        resolved.push({ ...item, product_id: existing.id });
+        continue;
+      }
+
+      try {
+        const response = await productsAPI.create({
+          name,
+          hsn_code: item.hsn_code || null,
+          unit: ALLOWED_UNITS.includes(item.unit) ? item.unit : 'Pieces',
+          default_price: parseFloat(item.rate) || 0,
+          gst_percentage: parseFloat(item.gst_percentage) || 0,
+        });
+        byName.set(key, response.data);
+        createdAny = true;
+        resolved.push({ ...item, product_id: response.data.id });
+      } catch (error) {
+        // Never block saving the bill just because the catalog write failed.
+        console.error('Could not add product to catalog:', name, error);
+        resolved.push(item);
+      }
+    }
+
+    if (createdAny) {
+      loadProducts();
+    }
+    return resolved;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -299,9 +352,11 @@ export default function CreateBill() {
     }
 
     try {
+      const itemsToSave = await resolveProductIds(validItems);
+
       const saleData = {
         customer_id: selectedCustomer.id,
-        items: validItems.map(item => ({
+        items: itemsToSave.map(item => ({
           product_id: item.product_id,
           description: item.description,
           hsn_code: item.hsn_code,
@@ -427,12 +482,12 @@ export default function CreateBill() {
           {/* Item Cards - better for complex inputs than cramped table */}
           <div className="space-y-4">
             {items.map((item, index) => {
-              const searchTerm = (item.product_search || '').toLowerCase();
-              const filteredProducts = searchTerm
-                ? products.filter(product =>
-                    product.name.toLowerCase().includes(searchTerm) ||
-                    (product.hsn_code || '').toLowerCase().includes(searchTerm)
-                  ).slice(0, 8)
+              const tokens = (item.product_search || '').toLowerCase().split(/\s+/).filter(Boolean);
+              const filteredProducts = tokens.length
+                ? products.filter(product => {
+                    const haystack = `${product.name} ${product.hsn_code || ''}`.toLowerCase();
+                    return tokens.every(token => haystack.includes(token));
+                  })
                 : [];
               const showDropdown = activeProductDropdown === index && filteredProducts.length > 0;
 
@@ -473,7 +528,10 @@ export default function CreateBill() {
 
                       {/* Product Dropdown - overlay style */}
                       {showDropdown && (
-                        <div className="absolute z-[9999] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                        <div className="absolute z-[9999] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+                          <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-4 py-1.5 text-xs text-gray-500">
+                            {filteredProducts.length} matching product{filteredProducts.length === 1 ? '' : 's'}
+                          </div>
                           {filteredProducts.map((product, pIdx) => (
                             <button
                               key={product.id}

@@ -33,6 +33,10 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()
 -- Ensure sales table has created_at
 ALTER TABLE sales ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
 
+-- Soft delete support: 'active' / 'deleted'. Deleting a bill in the UI only
+-- flips this flag, so the row is always recoverable from the Neon console.
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'active';
+
 -- ============================================
 -- BACKFILL: Set defaults for existing rows
 -- where new columns might be NULL
@@ -51,6 +55,10 @@ UPDATE sale_items
 SET cgst = ROUND((amount - taxable_amount) / 2.0, 2),
     sgst = ROUND((amount - taxable_amount) / 2.0, 2)
 WHERE cgst = 0 AND sgst = 0 AND taxable_amount > 0 AND amount > taxable_amount;
+
+-- Backfill status for any sale row that ended up NULL. Touches nothing that
+-- already has a value, so it will never resurrect a deleted bill.
+UPDATE sales SET status = 'active' WHERE status IS NULL;
 
 -- ============================================
 -- VERIFICATION QUERIES (run manually to check)

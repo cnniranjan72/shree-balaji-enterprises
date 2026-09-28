@@ -15,17 +15,20 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     return db_product
 
 @router.get("", response_model=List[schemas.Product])
-def get_products(skip: int = 0, limit: int = 100, search: Optional[str] = None, db: Session = Depends(get_db)):
+def get_products(skip: int = 0, limit: int = 2000, search: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Product)
-    
+
     if search:
-        search_filter = f"%{search}%"
-        query = query.filter(
-            (models.Product.name.ilike(search_filter)) |
-            (models.Product.hsn_code.ilike(search_filter))
-        )
-    
-    products = query.offset(skip).limit(limit).all()
+        # Every whitespace-separated token must match the name or the HSN code,
+        # so word order and extra spaces in the query don't hide a product.
+        for token in search.split():
+            token_filter = f"%{token}%"
+            query = query.filter(
+                (models.Product.name.ilike(token_filter)) |
+                (models.Product.hsn_code.ilike(token_filter))
+            )
+
+    products = query.order_by(models.Product.name).offset(skip).limit(limit).all()
     return products
 
 @router.get("/{product_id}", response_model=schemas.Product)

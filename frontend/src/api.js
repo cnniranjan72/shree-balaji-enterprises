@@ -65,7 +65,7 @@ export const customersAPI = {
 export const productsAPI = {
   getAll: async (search = '') => {
     try {
-      return await api.get(`/products?search=${search}`);
+      return await api.get('/products', { params: { search, limit: 2000 } });
     } catch (error) {
       showApiError(error);
       throw error;
@@ -106,9 +106,9 @@ export const productsAPI = {
 };
 
 export const salesAPI = {
-  getAll: async () => {
+  getAll: async (showDeleted = false) => {
     try {
-      return await api.get('/sales');
+      return await api.get('/sales', { params: { show_deleted: showDeleted, limit: 500 } });
     } catch (error) {
       showApiError(error);
       throw error;
@@ -141,6 +141,14 @@ export const salesAPI = {
   update: async (id, data) => {
     try {
       return await api.put(`/sales/${id}`, data);
+    } catch (error) {
+      showApiError(error);
+      throw error;
+    }
+  },
+  recover: async (id) => {
+    try {
+      return await api.patch(`/sales/${id}/recover`);
     } catch (error) {
       showApiError(error);
       throw error;

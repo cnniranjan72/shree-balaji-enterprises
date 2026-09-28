@@ -86,7 +86,14 @@ class Sale(SaleBase):
     invoice_number: str
     date: datetime
     created_at: datetime
-    
+    status: str = "active"
+
+    @field_validator('status', mode='before')
+    @classmethod
+    def validate_status(cls, v):
+        # Rows predating the status column read back as NULL; treat them as active.
+        return v or "active"
+
     class Config:
         from_attributes = True
 

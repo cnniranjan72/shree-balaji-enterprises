@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -70,10 +71,17 @@ def create_sale(sale: schemas.SaleCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=List[schemas.SaleWithDetails])
-def get_sales(skip: int = 0, limit: int = 100, show_deleted: bool = False, db: Session = Depends(get_db)):
+def get_sales(skip: int = 0, limit: int = 500, show_deleted: bool = False, db: Session = Depends(get_db)):
     query = db.query(models.Sale)
-    if not show_deleted:
-        query = query.filter(models.Sale.status != "deleted")
+    if show_deleted:
+        query = query.filter(models.Sale.status == "deleted")
+    else:
+        # Sales created before the status column existed have NULL, not "active".
+        # A bare `status != "deleted"` evaluates to NULL for those rows and would
+        # silently drop them from the active list, so match NULL explicitly.
+        query = query.filter(
+            or_(models.Sale.status.is_(None), models.Sale.status != "deleted")
+        )
     sales = query.order_by(models.Sale.date.desc()).offset(skip).limit(limit).all()
     return sales
 

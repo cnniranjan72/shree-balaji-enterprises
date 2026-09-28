@@ -64,7 +64,12 @@ def run_migrations():
             WHERE cgst = 0 AND sgst = 0 AND taxable_amount > 0 AND amount > taxable_amount
         """))
         print(f"  ✓ Backfilled cgst/sgst for {result.rowcount} rows")
-        
+
+        # Any sale row with a NULL status is treated as active. Rows that
+        # already say 'deleted' are left untouched.
+        result = conn.execute(text("UPDATE sales SET status = 'active' WHERE status IS NULL"))
+        print(f"  ✓ Backfilled sales.status for {result.rowcount} rows")
+
         conn.commit()
         print("\n✅ All migrations and backfills complete!")
 
