@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { customersAPI, productsAPI, salesAPI } from '../api';
 import { Plus, Trash2, Save, Search, ChevronDown } from 'lucide-react';
 
-const ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets'];
+const ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets', 'Packets', 'Tubes'];
 
 export default function CreateBill() {
   const navigate = useNavigate();

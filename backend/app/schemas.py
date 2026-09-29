@@ -2,7 +2,7 @@ from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import List, Optional
 
-ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets']
+ALLOWED_UNITS = ['Pieces', 'Boxes', 'Dozen', 'Sheets','Packets','Tubes']
 
 class CustomerBase(BaseModel):
     name: str
