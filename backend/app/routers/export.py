@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import extract
+from sqlalchemy import extract, and_
 from datetime import datetime
 import pandas as pd
 import io
@@ -124,8 +124,11 @@ def export_monthly_sales(month: int, year: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid month")
     
     sales = db.query(models.Sale).filter(
-        extract('month', models.Sale.date) == month,
-        extract('year', models.Sale.date) == year
+        and_(
+            extract('month', models.Sale.date) == month,
+            extract('year', models.Sale.date) == year,
+            models.Sale.status != 'deleted'
+        )
     ).all()
     
     if not sales:
@@ -153,7 +156,11 @@ def export_monthly_sales(month: int, year: int, db: Session = Depends(get_db)):
 
 @router.get("/all")
 def export_all_sales(db: Session = Depends(get_db)):
-    sales = db.query(models.Sale).order_by(models.Sale.date.desc()).all()
+    sales = db.query(models.Sale).filter(
+        and_(
+            models.Sale.status != 'deleted'
+        )
+    ).order_by(models.Sale.date.desc()).all()
     
     if not sales:
         raise HTTPException(status_code=404, detail="No sales found")
