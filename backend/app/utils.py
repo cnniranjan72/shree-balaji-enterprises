@@ -7,11 +7,9 @@ from num2words import num2words
 def generate_invoice_number(db: Session) -> str:
     now = datetime.now()
     year = now.year
-    month = now.month
     
     last_invoice = db.query(models.Sale).filter(
-        extract('year', models.Sale.date) == year,
-        extract('month', models.Sale.date) == month
+        extract('year', models.Sale.date) == year
     ).order_by(models.Sale.id.desc()).first()
     
     if last_invoice:
@@ -19,16 +17,15 @@ def generate_invoice_number(db: Session) -> str:
             last_num = int(last_invoice.invoice_number.split('-')[-1])
             new_num = last_num + 1
         except (ValueError, IndexError):
-            # Fallback: count existing invoices for this month
+            # Fallback: count existing invoices for this year
             count = db.query(models.Sale).filter(
-                extract('year', models.Sale.date) == year,
-                extract('month', models.Sale.date) == month
+                extract('year', models.Sale.date) == year
             ).count()
             new_num = count + 1
     else:
         new_num = 1
     
-    return f"INV-{year}-{month:02d}-{new_num:03d}"
+    return f"INV-{year}-{new_num:03d}"
 
 
 def calculate_item_values(item: object) -> dict:
