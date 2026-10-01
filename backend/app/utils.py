@@ -7,6 +7,7 @@ from num2words import num2words
 def generate_invoice_number(db: Session) -> str:
     now = datetime.now()
     year = now.year
+    month = now.month
     
     last_invoice = db.query(models.Sale).filter(
         extract('year', models.Sale.date) == year
@@ -25,7 +26,7 @@ def generate_invoice_number(db: Session) -> str:
     else:
         new_num = 1
     
-    return f"INV-{year}-{new_num:03d}"
+    return f"INV-{year}-{month:02d}-{new_num:03d}"
 
 
 def calculate_item_values(item: object) -> dict:
