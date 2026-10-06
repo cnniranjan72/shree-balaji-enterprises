@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import extract, and_
+from sqlalchemy import and_
 from datetime import datetime
 import pandas as pd
 import io
@@ -14,27 +14,66 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 def build_export_data(sales):
-    """Build export data using stored GST values (not recalculating)."""
+    """Build export data at invoice level - one row per invoice.
+
+    Groups all SaleItems belonging to the same Sale into a single row.
+    Item-specific fields (product name, HSN, unit, etc.) are aggregated into
+    comma-separated lists. Financial totals (taxable, CGST, SGST, total) are
+    summed across all items in the invoice.
+    """
     data = []
     for sale in sales:
-        for item in sale.items:
-            # Use stored values directly - they were calculated correctly at sale time
+        items = sale.items
+        if not items:
+            # Handle edge case: invoice with no items
             data.append({
                 "Invoice No": sale.invoice_number,
                 "Date": sale.date.strftime("%Y-%m-%d"),
                 "Customer Name": sale.customer.name if sale.customer else "Unknown",
                 "GSTIN": (sale.customer.gstin or "") if sale.customer else "",
-                "Product Name": item.description,
-                "HSN": item.hsn_code or "",
-                "Unit": item.unit or "",
-                "Quantity": item.quantity,
-                "Rate": item.rate,
-                "Taxable Amount": round(item.taxable_amount, 2),
-                "GST %": item.gst_percentage,
-                "CGST": round(item.cgst, 2),
-                "SGST": round(item.sgst, 2),
-                "Total": round(item.amount, 2)
+                "Product Name": "",
+                "HSN": "",
+                "Unit": "",
+                "Quantity": "",
+                "Rate": "",
+                "Taxable Amount": 0.0,
+                "GST %": "",
+                "CGST": 0.0,
+                "SGST": 0.0,
+                "Total": 0.0,
             })
+            continue
+
+        # Build comma-separated lists for item fields
+        product_names = ", ".join([item.description for item in items])
+        hsn_codes = ", ".join([item.hsn_code or "" for item in items])
+        units = ", ".join([item.unit or "" for item in items])
+        quantities = ", ".join([str(item.quantity) for item in items])
+        rates = ", ".join([str(item.rate) for item in items])
+        gst_percentages = ", ".join([str(item.gst_percentage) for item in items])
+
+        # Compute financial totals across all items
+        taxable_sum = round(sum(float(item.taxable_amount or 0) for item in items), 2)
+        cgst_sum = round(sum(float(item.cgst or 0) for item in items), 2)
+        sgst_sum = round(sum(float(item.sgst or 0) for item in items), 2)
+        total_sum = round(sum(float(item.amount or 0) for item in items), 2)
+
+        data.append({
+            "Invoice No": sale.invoice_number,
+            "Date": sale.date.strftime("%Y-%m-%d"),
+            "Customer Name": sale.customer.name if sale.customer else "Unknown",
+            "GSTIN": (sale.customer.gstin or "") if sale.customer else "",
+            "Product Name": product_names,
+            "HSN": hsn_codes,
+            "Unit": units,
+            "Quantity": quantities,
+            "Rate": rates,
+            "Taxable Amount": taxable_sum,
+            "GST %": gst_percentages,
+            "CGST": cgst_sum,
+            "SGST": sgst_sum,
+            "Total": total_sum,
+        })
     return data
 
 
@@ -46,7 +85,7 @@ def write_excel_with_header(df, output, header_title, sub_title):
       Row 2: subtitle (merged across all columns)
       Row 3: (empty spacer)
       Row 4: column headers (written by pandas startrow=3)
-      Row 5..: one row per exported line item
+      Row 5..: one row per exported invoice
       Last data row + 1: TOTAL row (numeric sums, bold) -- strictly AFTER all data rows
     """
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
