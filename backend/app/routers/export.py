@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, extract
 from datetime import datetime
 import pandas as pd
 import io
@@ -158,54 +158,108 @@ def write_excel_with_header(df, output, header_title, sub_title):
 
 
 @router.get("/monthly")
-def export_monthly_sales(month: int, year: int, db: Session = Depends(get_db)):
+def export_monthly_sales(
+    month: int,
+    year: int,
+    db: Session = Depends(get_db)
+):
     if month < 1 or month > 12:
-        raise HTTPException(status_code=400, detail="Invalid month")
-    
-    sales = db.query(models.Sale).filter(
-        and_(
-            extract('month', models.Sale.date) == month,
-            extract('year', models.Sale.date) == year,
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid month. Month must be between 1 and 12."
+        )
+
+    # Calculate start and end of requested month
+    start_date = datetime(year, month, 1)
+
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1)
+    else:
+        end_date = datetime(year, month + 1, 1)
+
+    # IMPORTANT:
+    # One Sale = One invoice.
+    # build_export_data() converts each Sale into exactly ONE Excel row.
+    sales = (
+        db.query(models.Sale)
+        .filter(
+            models.Sale.date >= start_date,
+            models.Sale.date < end_date,
             or_(
-                models.Sale.status == 'active',
+                models.Sale.status == "active",
                 models.Sale.status.is_(None)
             )
         )
-    ).all()
-    
+        .order_by(models.Sale.date.asc())
+        .all()
+    )
+
     if not sales:
-        raise HTTPException(status_code=404, detail="No sales found for the specified month")
-    
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active sales found for {month:02d}/{year}"
+        )
+
+    # One invoice = one row.
+    # Multiple products inside the invoice are comma-separated.
     data = build_export_data(sales)
+
     df = pd.DataFrame(data)
-    
+
     output = io.BytesIO()
-    
-    month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    write_excel_with_header(df, output, "Monthly Sales", f"{month_names[month]} {year} Sales")
-    
+
+    month_names = [
+        "",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+
+    write_excel_with_header(
+        df,
+        output,
+        "Monthly Sales",
+        f"{month_names[month]} {year} Sales"
+    )
+
     output.seek(0)
-    
+
     filename = f"sales_{year}_{month:02d}.xlsx"
-    
+
     return StreamingResponse(
         output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
     )
 
 
 @router.get("/all")
 def export_all_sales(db: Session = Depends(get_db)):
-    sales = db.query(models.Sale).filter(
-        and_(
+    sales = (
+        db.query(models.Sale)
+        .filter(
             or_(
-                models.Sale.status == 'active',
+                models.Sale.status == "active",
                 models.Sale.status.is_(None)
             )
         )
-    ).order_by(models.Sale.date.desc()).all()
+        .order_by(models.Sale.date.asc())
+        .all()
+    )
     
     if not sales:
         raise HTTPException(status_code=404, detail="No sales found")
